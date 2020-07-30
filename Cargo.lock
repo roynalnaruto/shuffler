@@ -1365,6 +1365,8 @@ dependencies = [
  "anyhow",
  "ethers",
  "rand_chacha",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 
