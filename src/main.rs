@@ -5,8 +5,14 @@ use std::{env, str::FromStr, time::Duration};
 mod bindings;
 use bindings::BeaconContract;
 
+mod list;
+use list::RandomisableList;
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let mut rand_list = RandomisableList::new(10);
+    dbg!("[list]: {:?}", rand_list.list());
+
     let (url, private_key) = env_var()?;
     let ws = Ws::connect(url).await?;
     let provider = Provider::new(ws).interval(Duration::from_secs(5));
@@ -17,8 +23,17 @@ async fn main() -> anyhow::Result<()> {
 
     let mut stream = beacon_contract.log_new_randomness_filter().stream().await?;
 
-    while let Some(log) = stream.next().await {
-        dbg!(log);
+    while let Some(item) = stream.next().await {
+        match item {
+            Ok(log) => {
+                dbg!("[block]: {:?}", log.block_number);
+                rand_list.shuffle(log.randomness);
+                dbg!("[list]: {:?}", rand_list.list());
+            }
+            Err(e) => {
+                dbg!("[error]: {:?}", e);
+            }
+        }
     }
 
     Ok(())
