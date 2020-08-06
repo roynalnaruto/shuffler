@@ -3,35 +3,30 @@ use ethers::prelude::*;
 use std::{env, str::FromStr, time::Duration};
 
 mod bindings;
-use bindings::BeaconContract;
-
-mod list;
-use list::RandomisableList;
+use bindings::IERC20;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let mut rand_list = RandomisableList::new(10);
-    dbg!("[list]: {:?}", rand_list.list());
-
     let (url, private_key) = env_var()?;
     let ws = Ws::connect(url).await?;
     let provider = Provider::new(ws).interval(Duration::from_secs(5));
     let client = private_key.parse::<Wallet>()?.connect(provider);
 
-    let address = Address::from_str("79474439753C7c70011C3b00e06e559378bAD040")?;
-    let beacon_contract = BeaconContract::new(address, client);
+    // mainnet USDT: https://etherscan.io/address/0xdac17f958d2ee523a2206206994597c13d831ec7
+    let address = Address::from_str("dAC17F958D2ee523a2206206994597C13D831ec7")?;
+    let contract = IERC20::new(address, client);
 
-    let mut stream = beacon_contract.log_new_randomness_filter().stream().await?;
+    let mut stream = contract.transfer_filter().stream().await?;
 
     while let Some(item) = stream.next().await {
         match item {
             Ok(log) => {
-                dbg!("[block]: {:?}", log.block_number);
-                rand_list.shuffle(log.randomness);
-                dbg!("[list]: {:?}", rand_list.list());
+                dbg!("[from]  : {:?}", log.from);
+                dbg!("[to]    : {:?}", log.to);
+                dbg!("[value] : {:?}", log.value);
             }
             Err(e) => {
-                dbg!("[error]: {:?}", e);
+                dbg!("[error] : {:?}", e);
             }
         }
     }
